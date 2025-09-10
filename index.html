@@ -97,9 +97,9 @@
             <button id="genBtn" class="btn primary" type="button">Generiši sertifikat</button>
             <button id="dlBtn" class="btn" type="button" disabled aria-disabled="true">Preuzmi PNG</button>
             <button id="printBtn" class="btn" type="button" disabled aria-disabled="true">Štampaj / Sačuvaj PDF</button>
-            <button id="copyBtn" class="btn" type="button">Kopiraj tekst objave</button>
+            <button id="shareBtn" class="btn" type="button" disabled aria-disabled="true">Podijeli</button>
           </div>
-          <p class="hint">Isprintaj, potpiši i čuvaj dokument kao potsjetnik!     |      Proširi glas-> kopirati tekst objave i podjeli na socijalne mreže.</p>
+          <p class="hint">Isprintaj, potpiši i čuvaj dokument kao podsjetnik!    |     Proširi glas-> podijeli na socijalne mreže.</p>
           <div id="status" class="sr-only" aria-live="polite"></div>
         </div>
       </form>
@@ -121,7 +121,7 @@
     const genBtn = document.getElementById('genBtn');
     const dlBtn = document.getElementById('dlBtn');
     const printBtn = document.getElementById('printBtn');
-    const copyBtn = document.getElementById('copyBtn');
+    const shareBtn = document.getElementById('shareBtn');
     const consentEl = document.getElementById('consent');
     const statusEl = document.getElementById('status');
     const toastEl = document.getElementById('toast');
@@ -135,7 +135,7 @@
     try { date.valueAsDate = new Date(); } catch {}
 
     const BASE_W = 1000, BASE_H = 1400;
-    const CAMPAIGN_YEAR = 2025;
+    const CAMPAIGN_YEAR = new Date().getFullYear();
     const HASHTAGS = '#IDD2025 #DanDemokratije';
 
     const isSecure = window.isSecureContext || location.protocol === 'https:';
@@ -193,7 +193,6 @@
     }
 
     function htmlToPlainPledge(){
-      // Convert the visible pledge HTML into a plain text with bullets for canvas rendering & sharing
       const root = document.getElementById('pledgeHTML');
       const parts = [];
       root.querySelectorAll('p, li').forEach(el=>{
@@ -209,22 +208,44 @@
       const A4_W = 2480; const scale = A4_W / BASE_W; const off = document.createElement('canvas'); off.width = Math.round(BASE_W * scale); off.height = Math.round(BASE_H * scale); const octx = off.getContext('2d'); octx.setTransform(scale,0,0,scale,0,0); drawCertificate(octx, payload); return off.toDataURL('image/png');
     }
 
-    function enableActions(enable){ [dlBtn, printBtn].forEach(b=>{ b.disabled = !enable; b.setAttribute('aria-disabled', String(!enable)); }); }
+    function enableActions(enable){ [dlBtn, printBtn, shareBtn].forEach(b=>{ b.disabled = !enable; b.setAttribute('aria-disabled', String(!enable)); }); }
 
     function getShareText(){
-  return `Upravo sam potpisao/la moje obećanje povodom Međunarodnog dana demokratije ${CAMPAIGN_YEAR}! Pridruži se i potpiši i ti. ${CAMPAIGN_URL} ${HASHTAGS}`;
-}
-
+      return `Upravo sam potpisao/la moje obećanje povodom Međunarodnog dana demokratije ${CAMPAIGN_YEAR}! Pridruži se i potpiši i ti. ${window.location.href} ${HASHTAGS}`;
+    }
 
     let toastTimer = null; function showToast(msg){ toastEl.textContent = msg; toastEl.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(()=>toastEl.classList.remove('show'), 2200); }
 
     async function copyShareText(){
-      const text = getShareText(consentEl.checked);
+      const text = getShareText();
       try{
         if (navigator.clipboard && isSecure){ await navigator.clipboard.writeText(text); }
         else { const ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.left='-9999px'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
         showToast('Tekst je kopiran. Nalijepi ga u objavu.');
       } catch(e){ /* ignore */ }
+    }
+
+    async function shareCertificate(){
+      const shareUrl = window.location.href;
+      const shareTitle = "Moje obećanje";
+      const shareText = getShareText();
+
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: shareTitle,
+            text: shareText,
+            url: shareUrl,
+          });
+        } catch (error) {
+          console.error('Error sharing:', error);
+          // Fallback to copying text if native sharing fails
+          copyShareText();
+        }
+      } else {
+        // Fallback for browsers without native share support
+        copyShareText();
+      }
     }
 
     async function printSafely(){
@@ -245,7 +266,7 @@
     genBtn.addEventListener('click', generate);
     dlBtn.addEventListener('click', ()=>{ const safe=[fname.value.trim(), lname.value.trim()].filter(Boolean).join('_').replace(/\s+/g,'-')||'obecanje'; const a=document.createElement('a'); a.download=`obecanje_${safe}.png`; a.href=printCertImg.src||certImg.src; if (a.href) a.click(); });
     printBtn.addEventListener('click', printSafely);
-    copyBtn.addEventListener('click', copyShareText);
+    shareBtn.addEventListener('click', shareCertificate);
 
     // Init
     enableActions(false);
