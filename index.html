@@ -25,9 +25,9 @@
     input{background:#fff; color:var(--ink); border:1px solid #d1d5db; border-radius:10px; padding:10px}
 
     .actions{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px}
-    .btn{appearance:none; border:1px solid #d1d5db; background:#fff; color:var(--ink); padding:10px 14px; border-radius:10px; cursor:pointer}
+    .btn{appearance:none; border:1px solid #d1d5db; background:#fff; color:var(--ink); padding:10px 14px; border-radius:10px; cursor:pointer; text-decoration:none; display:inline-block}
     .btn.primary{background:var(--accent); color:#fff; border-color:var(--accent); font-weight:700}
-    .btn[disabled]{opacity:.55; cursor:not-allowed}
+    .btn[aria-disabled="true"]{opacity:.55; pointer-events:none; cursor:not-allowed}
 
     .pledge-section{margin:16px 0 6px}
     .pledge-section .label{margin-bottom:6px}
@@ -77,6 +77,13 @@
     <div class="card no-print">
       <h1>Potpiši obećanje</h1>
       <p class="muted"><i>*Napomena: Popuni svoje podatke, generiši sertifikat, a potom ga preuzmi, odštampaj ili podijeli. (Podaci se ne čuvaju.)</i></p>
+      <p class="muted">
+        Ako dijeljenje ne radi u ovoj ugrađenoj verziji,
+        <a href="https://pledge2025.github.io/idd-share/" target="_blank" rel="noopener noreferrer">
+          otvori aplikaciju u novom prozoru
+        </a>
+        i pokušaj ponovo.
+      </p>
 
       <section class="pledge-section" aria-labelledby="pledge-heading">
         <div class="label" id="pledge-heading">Tekst obećanja</div>
@@ -123,15 +130,21 @@ Uviđajući vrijednost i značaj demokratije, ali i prepoznajući izazove i prij
         <div class="field" style="grid-column:1 / -1">
           <div class="actions">
             <button id="genBtn" class="btn primary" type="button">Generiši sertifikat</button>
-            <button id="dlBtn" class="btn" type="button" disabled aria-disabled="true">Preuzmi PNG</button>
-            <button id="printBtn" class="btn" type="button" disabled aria-disabled="true">Štampaj / Sačuvaj PDF</button>
-            <button id="shareBtn" class="btn" type="button" disabled aria-disabled="true">Podijeli (Web Share)</button>
+            <button id="dlBtn" class="btn" type="button" aria-disabled="true">Preuzmi PNG</button>
+            <button id="printBtn" class="btn" type="button" aria-disabled="true">Štampaj / Sačuvaj PDF</button>
           </div>
+
+          <!-- Social share (SSS-powered). No handlers needed; just data-share attributes. -->
           <div class="actions">
-            <a id="tw" class="btn" href="#" target="_blank" rel="noopener noreferrer">Podijeli na X</a>
-            <a id="fb" class="btn" href="#" target="_blank" rel="noopener noreferrer">Podijeli na Facebook</a>
-            <a id="li" class="btn" href="#" target="_blank" rel="noopener noreferrer">Podijeli na LinkedIn</a>
+            <a class="btn" data-share="native" href="#">Podijeli (Web Share)</a>
+            <a class="btn" data-share="x" href="#">X</a>
+            <a class="btn" data-share="facebook" href="#">Facebook</a>
+            <a class="btn" data-share="linkedin" href="#">LinkedIn</a>
+            <a class="btn" data-share="whatsapp" href="#">WhatsApp</a>
+            <a class="btn" data-share="telegram" href="#">Telegram</a>
+            <a class="btn" data-share="email" href="#">Email</a>
           </div>
+
           <div id="status" class="sr-only" aria-live="polite"></div>
         </div>
       </form>
@@ -149,19 +162,85 @@ Uviđajući vrijednost i značaj demokratije, ali i prepoznajući izazove i prij
 
   <div id="toast" class="toast" role="status" aria-live="polite">Tekst je kopiran. Nalijepi ga u objavu.</div>
 
+  <!-- Simple Social Sharing (SSS) -->
+  <script>
+  (function(){
+    function getShareUrls(opts){
+      const u = (opts.url || location.href).trim();
+      const text = (opts.text || '').trim();
+      const title = (opts.title || document.title).trim();
+      const hashtags = (opts.hashtags || '').replace(/#/g,'').split(/[,\s]+/).filter(Boolean).join(',');
+      const via = (opts.via || '').replace(/^@/,'').trim();
+
+      const enc = encodeURIComponent;
+      const eUrl = enc(u);
+      const eText = enc(text);
+      const eTitle = enc(title);
+
+      const xParams = new URLSearchParams();
+      if (text) xParams.set('text', text);
+      xParams.set('url', u);
+      if (hashtags) xParams.set('hashtags', hashtags);
+      if (via) xParams.set('via', via);
+
+      return {
+        x: `https://x.com/intent/tweet?${xParams.toString()}`,
+        facebook: `https://www.facebook.com/sharer/sharer.php?u=${eUrl}${text ? '&quote='+eText : ''}`,
+        linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${eUrl}`,
+        whatsapp: `https://api.whatsapp.com/send?text=${eText ? eText + '%20' : ''}${eUrl}`,
+        telegram: `https://t.me/share/url?url=${eUrl}${text ? '&text='+eText : ''}`,
+        email: `mailto:?subject=${eTitle}&body=${eText ? eText + '%0A%0A' : ''}${eUrl}`
+      };
+    }
+
+    async function webShare(opts, fileDataUrl){
+      if (!('share' in navigator)) return false;
+      const shareData = { title: opts.title || document.title, text: opts.text || '', url: opts.url || location.href };
+      if (fileDataUrl && 'canShare' in navigator){
+        try{
+          const blob = await (await fetch(fileDataUrl)).blob();
+          const f = new File([blob], opts.filename || 'share.png', { type: blob.type || 'image/png' });
+          const withFile = { ...shareData, files: [f] };
+          if (navigator.canShare(withFile)){ await navigator.share(withFile); return true; }
+        }catch(_){}
+      }
+      try { await navigator.share(shareData); return true; } catch(e){ return false; }
+    }
+
+    function wireShareButtons(opts){
+      const urls = getShareUrls(opts);
+      document.querySelectorAll('[data-share]').forEach(el=>{
+        const t = el.dataset.share;
+        if (t === 'native'){
+          // remove previous listeners if any by cloning
+          const replacement = el.cloneNode(true);
+          el.replaceWith(replacement);
+          replacement.addEventListener('click', async e=>{
+            e.preventDefault();
+            const ok = await webShare(opts, opts.fileDataUrl);
+            if (!ok){ window.open(urls.x,'_blank','noopener,noreferrer'); }
+          });
+        } else if (urls[t]){
+          el.setAttribute('href', urls[t]);
+          el.setAttribute('target', '_blank');
+          el.setAttribute('rel', 'noopener noreferrer');
+        }
+      });
+      return urls;
+    }
+
+    window.SSS = { getShareUrls, webShare, wireShareButtons };
+  })();
+  </script>
+
+  <!-- App logic -->
   <script>
     (function(){
       const genBtn = document.getElementById('genBtn');
       const dlBtn = document.getElementById('dlBtn');
       const printBtn = document.getElementById('printBtn');
-      const shareBtn = document.getElementById('shareBtn');
-      const tw = document.getElementById('tw');
-      const fb = document.getElementById('fb');
-      const li = document.getElementById('li');
       const pledgeTextEl = document.getElementById('pledgeText');
-      const consentEl = document.getElementById('consent');
       const statusEl = document.getElementById('status');
-      const toastEl = document.getElementById('toast');
 
       const canvas = document.getElementById('cert');
       const ctx = canvas.getContext('2d');
@@ -171,6 +250,7 @@ Uviđajući vrijednost i značaj demokratije, ali i prepoznajući izazove i prij
       const fname = document.getElementById('fname');
       const lname = document.getElementById('lname');
       const date = document.getElementById('date');
+      const consentEl = document.getElementById('consent');
       try { date.valueAsDate = new Date(); } catch {}
 
       const BASE_W = 1000, BASE_H = 1400;
@@ -247,7 +327,7 @@ Uviđajući vrijednost i značaj demokratije, ali i prepoznajući izazove i prij
         context.fillRect(0, 0, BASE_W, BASE_H);
 
         const pad = 64;
-        const bodyPad = 70; // generous margins L/R
+        const bodyPad = 70;
 
         // Borders
         context.strokeStyle = accent;
@@ -340,73 +420,21 @@ Uviđajući vrijednost i značaj demokratije, ali i prepoznajući izazove i prij
       }
 
       function enableActions(enable){
-        [dlBtn, printBtn, shareBtn].forEach(b=>{
-          b.disabled = !enable;
+        // Only download/print need enabling; share links are always available.
+        [dlBtn, printBtn].forEach(b=>{
           b.setAttribute('aria-disabled', String(!enable));
         });
       }
 
-      // === Share text builder used by all shares ===
-      function getShareText(includeName){
-        const fullName = `${fname.value.trim()} ${lname.value.trim()}`.trim();
-        const namePart = includeName && fullName ? ` (${fullName})` : '';
-        return `Upravo sam potpisao/la moje obećanje povodom Međunarodnog dana demokratije ${CAMPAIGN_YEAR}!${namePart} Pridruži se i potpiši i ti. ${HASHTAGS}`;
-      }
-
-      // === Social share links (X supports text; FB/LI may ignore prefill) ===
-      function updateShareLinks(nameIncluded){
-        const text = getShareText(nameIncluded);
-        const url = encodeURI(CAMPAIGN_URL);
-        const encodedText = encodeURIComponent(text);
-        // X / Twitter
-        tw.href = `https://x.com/intent/tweet?text=${encodedText}&url=${url}`;
-        // Facebook (quote is best-effort; FB may ignore)
-        fb.href = `https://www.facebook.com/sharer/sharer.php?u=${url}&quote=${encodedText}`;
-        // LinkedIn (no custom text allowed; URL only)
-        li.href = `https://www.linkedin.com/sharing/share-offsite/?url=${url}`;
-      }
-
-      // Small toast helper
-      let toastTimer = null;
-      function showToast(msg){
-        toastEl.textContent = msg;
-        toastEl.classList.add('show');
-        clearTimeout(toastTimer);
-        toastTimer = setTimeout(()=>toastEl.classList.remove('show'), 2200);
-      }
-
-      // Copy helper (HTTPS required except localhost)
-      async function copyShareText(){
-        const text = getShareText(consentEl.checked);
-        try{
-          if (navigator.clipboard && (window.isSecureContext || location.hostname === 'localhost')){
-            await navigator.clipboard.writeText(text);
-            showToast('Tekst je kopiran. Nalijepi ga u objavu.');
-          } else {
-            // Fallback textarea method
-            const ta = document.createElement('textarea');
-            ta.value = text; ta.style.position='fixed'; ta.style.left='-9999px';
-            document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
-            showToast('Tekst je kopiran. Nalijepi ga u objavu.');
-          }
-        } catch(e){
-          // Silent; not fatal
-        }
-      }
-
-      function popupShare(href){
-        const w = 700, h = 560;
-        const y = window.top ? (window.top.outerHeight - h)/2 : 100;
-        const x = window.top ? (window.top.outerWidth - w)/2 : 100;
-        window.open(href, '_blank', `popup=yes,toolbar=0,location=0,status=0,menubar=0,scrollbars=1,resizable=1,width=${w},height=${h},left=${x},top=${y}`);
-      }
-
+      // ---- Generate (drop-in replacement with SSS wiring) ----
       function generate(){
         if (!fname.value.trim() || !lname.value.trim() || !date.value){
           alert('Molimo unesite ime, prezime i datum.');
           return;
         }
+
         statusEl.textContent = 'Generišem sertifikat…';
+
         const payload = {
           first: fname.value.trim(),
           last: lname.value.trim(),
@@ -414,19 +442,33 @@ Uviđajući vrijednost i značaj demokratije, ali i prepoznajući izazove i prij
           pledge: pledgeTextEl.value,
           accent: getAccent()
         };
+
         const exportUrl = renderHighRes(payload);
         certImg.src = exportUrl;
         printCertImg.src = exportUrl;
-        enableActions(true);
-        updateShareLinks(consentEl.checked);
-        statusEl.textContent = 'Sertifikat je generisan (PNG).';
-      }
 
-      // Convert dataURL to File for Web Share files
-      async function dataURLToFile(dataURL, filename){
-        const res = await fetch(dataURL);
-        const blob = await res.blob();
-        return new File([blob], filename, { type: blob.type || 'image/png' });
+        enableActions(true);
+        statusEl.textContent = 'Sertifikat je generisan (PNG).';
+
+        // Build dynamic share text (includes name only if consent is checked)
+        const fullName = `${fname.value.trim()} ${lname.value.trim()}`.trim();
+        const namePart = consentEl.checked && fullName ? ` (${fullName})` : '';
+        const shareText = `Upravo sam potpisao/la moje obećanje povodom Međunarodnog dana demokratije ${CAMPAIGN_YEAR}!${namePart} Pridruži se i potpiši i ti. ${HASHTAGS}`;
+
+        // Nice filename
+        const safeName = [fname.value.trim(), lname.value.trim()]
+          .filter(Boolean).join('_').replace(/\s+/g,'-') || 'obecanje';
+
+        // Wire (or re-wire) all [data-share] buttons with latest data + PNG for native share
+        SSS.wireShareButtons({
+          url: CAMPAIGN_URL,
+          title: 'Moje obećanje',
+          text: shareText,
+          hashtags: HASHTAGS.replace(/#/g,'').split(/\s+/).filter(Boolean).join(','), // "IDD2025,DanDemokratije"
+          via: '',
+          fileDataUrl: exportUrl,
+          filename: `obecanje_${safeName}.png`
+        });
       }
 
       // Robust print
@@ -447,35 +489,6 @@ Uviđajući vrijednost i značaj demokratije, ali i prepoznajući izazove i prij
         setTimeout(()=>window.print(), 0);
       }
 
-      // Web Share: text + (if supported) attach the generated PNG file
-      async function shareSafely(){
-        const isSecure = window.isSecureContext || location.protocol === 'https:';
-        if (!isSecure){
-          alert('Web Share radi samo preko HTTPS-a. Otvorite ovu stranicu preko sigurnog (https) URL-a ili koristite dugmad za društvene mreže.');
-          return;
-        }
-        const text = getShareText(consentEl.checked);
-
-        // Try file share
-        const src = printCertImg.src || certImg.src;
-        if (src && 'canShare' in navigator && 'share' in navigator){
-          try{
-            const safeName = [fname.value.trim(), lname.value.trim()].filter(Boolean).join('_').replace(/\s+/g,'-') || 'obecanje';
-            const file = await dataURLToFile(src, `obecanje_${safeName}.png`);
-            const shareData = { title: 'Obećanje', text, url: CAMPAIGN_URL, files: [file] };
-            if (navigator.canShare(shareData)){ await navigator.share(shareData); return; }
-          } catch(e){ /* fall back */ }
-        }
-
-        // Text-only fallback
-        if ('share' in navigator){
-          try{ await navigator.share({ title:'Obećanje', text, url: CAMPAIGN_URL }); }
-          catch(e){ if (!e || e.name !== 'AbortError') alert('Dijeljenje nije uspjelo. Pokušajte preko X/Facebook/LinkedIn.'); }
-        } else {
-          alert('Ovaj pregledač ne podržava Web Share. Koristite dugmad za društvene mreže.');
-        }
-      }
-
       // Events
       genBtn.addEventListener('click', generate);
 
@@ -488,27 +501,18 @@ Uviđajući vrijednost i značaj demokratije, ali i prepoznajući izazove i prij
       });
 
       printBtn.addEventListener('click', printSafely);
-      shareBtn.addEventListener('click', shareSafely);
 
-      // Social buttons — ensure text is copied before opening FB/LI (and also OK for X)
-      tw.addEventListener('click', async (e)=>{ /* X has prefill, no copy needed */ });
-      fb.addEventListener('click', async (e)=>{
-        e.preventDefault();
-        await copyShareText();
-        popupShare(fb.href);
+      // ---- Initial share wiring on page load (generic text, no PNG) ----
+      SSS.wireShareButtons({
+        url: CAMPAIGN_URL,
+        title: 'Moje obećanje',
+        text: `Pridružujem se obilježavanju Međunarodnog dana demokratije ${CAMPAIGN_YEAR}. ${HASHTAGS}`,
+        hashtags: HASHTAGS.replace(/#/g,'').split(/\s+/).filter(Boolean).join(','),
+        via: ''
       });
-      li.addEventListener('click', async (e)=>{
-        e.preventDefault();
-        await copyShareText(); // LI ignores prefill; user pastes
-        popupShare(li.href);
-      });
-
-      consentEl.addEventListener('change',()=>updateShareLinks(consentEl.checked));
-      [fname,lname].forEach(el=>el.addEventListener('input',()=>updateShareLinks(consentEl.checked)));
 
       // Init
       enableActions(false);
-      updateShareLinks(false);
     })();
   </script>
 </body>
