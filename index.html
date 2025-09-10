@@ -77,13 +77,7 @@
     <div class="card no-print">
       <h1>Potpiši obećanje</h1>
       <p class="muted"><i>*Napomena: Popuni svoje podatke, generiši sertifikat, a potom ga preuzmi, odštampaj ili podijeli. (Podaci se ne čuvaju.)</i></p>
-      <p class="muted">
-        Ako dijeljenje ne radi u ovoj ugrađenoj verziji,
-        <a href="https://pledge2025.github.io/idd-share/" target="_blank" rel="noopener noreferrer">
-          otvori aplikaciju u novom prozoru
-        </a>
-        i pokušaj ponovo.
-      </p>
+     
 
       <section class="pledge-section" aria-labelledby="pledge-heading">
         <div class="label" id="pledge-heading">Tekst obećanja</div>
@@ -134,14 +128,12 @@ Uviđajući vrijednost i značaj demokratije, ali i prepoznajući izazove i prij
             <button id="printBtn" class="btn" type="button" aria-disabled="true">Štampaj / Sačuvaj PDF</button>
           </div>
 
-          <!-- Social share (SSS-powered). No handlers needed; just data-share attributes. -->
+          <!-- Social share (SSS-powered). WhatsApp & Telegram removed -->
           <div class="actions">
             <a class="btn" data-share="native" href="#">Podijeli (Web Share)</a>
             <a class="btn" data-share="x" href="#">X</a>
             <a class="btn" data-share="facebook" href="#">Facebook</a>
             <a class="btn" data-share="linkedin" href="#">LinkedIn</a>
-            <a class="btn" data-share="whatsapp" href="#">WhatsApp</a>
-            <a class="btn" data-share="telegram" href="#">Telegram</a>
             <a class="btn" data-share="email" href="#">Email</a>
           </div>
 
@@ -187,8 +179,6 @@ Uviđajući vrijednost i značaj demokratije, ali i prepoznajući izazove i prij
         x: `https://x.com/intent/tweet?${xParams.toString()}`,
         facebook: `https://www.facebook.com/sharer/sharer.php?u=${eUrl}${text ? '&quote='+eText : ''}`,
         linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${eUrl}`,
-        whatsapp: `https://api.whatsapp.com/send?text=${eText ? eText + '%20' : ''}${eUrl}`,
-        telegram: `https://t.me/share/url?url=${eUrl}${text ? '&text='+eText : ''}`,
         email: `mailto:?subject=${eTitle}&body=${eText ? eText + '%0A%0A' : ''}${eUrl}`
       };
     }
@@ -254,7 +244,7 @@ Uviđajući vrijednost i značaj demokratije, ali i prepoznajući izazove i prij
       try { date.valueAsDate = new Date(); } catch {}
 
       const BASE_W = 1000, BASE_H = 1400;
-      const CAMPAIGN_URL = "https://pledge2025.github.io/idd-share/";
+      const CAMPAIGN_URL = "https://sites.google.com/ndi.org/idd2025mne/moje-obe%C4%87anje";
       const CAMPAIGN_YEAR = 2025;
       const HASHTAGS = '#IDD2025 #DanDemokratije';
 
@@ -420,13 +410,11 @@ Uviđajući vrijednost i značaj demokratije, ali i prepoznajući izazove i prij
       }
 
       function enableActions(enable){
-        // Only download/print need enabling; share links are always available.
         [dlBtn, printBtn].forEach(b=>{
           b.setAttribute('aria-disabled', String(!enable));
         });
       }
 
-      // ---- Generate (drop-in replacement with SSS wiring) ----
       function generate(){
         if (!fname.value.trim() || !lname.value.trim() || !date.value){
           alert('Molimo unesite ime, prezime i datum.');
