@@ -6,11 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Potpiši obećanje, preuzmi, odštampaj ili podijeli na mrežama. Podaci se ne čuvaju.">
   <style>
-    :root{
-      --bg:#f7fafc; --card:#ffffff; --ink:#111827; --muted:#4b5563; --border:#e5e7eb;
-      --radius:16px; --shadow:0 10px 24px rgba(0,0,0,.08);
-      --accent:#003869;
-    }
+    :root{ --bg:#f7fafc; --card:#ffffff; --ink:#111827; --muted:#4b5563; --border:#e5e7eb; --radius:16px; --shadow:0 10px 24px rgba(0,0,0,.08); --accent:#003869; }
     *{box-sizing:border-box}
     body{margin:0; font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial; background:var(--bg); color:var(--ink)}
     .container{max-width:980px; margin-inline:auto; padding:24px}
@@ -41,11 +37,7 @@
     #cert{width:100%; height:auto; display:block}
     #certImg{width:100%; height:auto; display:block; background:#fff; border:1px solid #d1d5db; border-radius:12px}
 
-    .sr-only{
-      position:absolute !important; width:1px !important; height:1px !important;
-      padding:0 !important; margin:-1px !important; overflow:hidden !important;
-      clip:rect(0,0,0,0) !important; white-space:nowrap !important; border:0 !important;
-    }
+    .sr-only{ position:absolute !important; width:1px !important; height:1px !important; padding:0 !important; margin:-1px !important; overflow:hidden !important; clip:rect(0,0,0,0) !important; white-space:nowrap !important; border:0 !important; }
 
     @media print{
       @page { size: A4 portrait; margin: 0; }
@@ -54,30 +46,20 @@
       * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .no-print{display:none !important}
       .print-only{display:block !important}
-      #printCertImg{
-        display:block; width:210mm; height:auto; max-width:100%;
-        image-rendering: optimizeQuality;
-        page-break-inside: avoid; break-inside: avoid; page-break-after: avoid;
-      }
+      #printCertImg{ display:block; width:210mm; height:auto; max-width:100%; image-rendering: optimizeQuality; page-break-inside: avoid; break-inside: avoid; page-break-after: avoid; }
     }
     .print-only{display:none}
-    .footer{margin-top:20px; color:var(--muted); font-size:.9rem}
 
-    /* tiny toast */
-    .toast{
-      position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
-      background: #111827; color: #fff; padding: 10px 14px; border-radius: 10px;
-      box-shadow: var(--shadow); font-size: .95rem; opacity: 0; pointer-events: none;
-      transition: opacity .25s ease;
-    }
+    .toast{ position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #111827; color: #fff; padding: 10px 14px; border-radius: 10px; box-shadow: var(--shadow); font-size: .95rem; opacity: 0; pointer-events: none; transition: opacity .25s ease; }
     .toast.show{ opacity: 1; }
+    .hint{font-size:.9rem; color:var(--muted)}
   </style>
 </head>
 <body>
-  <div class="container" aria-busy="false">
+  <div class="container">
     <div class="card no-print">
       <h1>Potpiši obećanje</h1>
-      <p class="muted"><i>*Napomena: Popuni svoje podatke, generiši sertifikat, a potom ga preuzmi, odštampaj ili podijeli. (Podaci se ne čuvaju.)</i></p>
+      <p class="muted"><i>*Popuni svoje podatke, generiši sertifikat, a zatim ga preuzmi, odštampaj ili podijeli.</i></p>
 
       <section class="pledge-section" aria-labelledby="pledge-heading">
         <div class="label" id="pledge-heading">Tekst obećanja</div>
@@ -132,7 +114,9 @@ Uviđajući vrijednost i značaj demokratije, ali i prepoznajući izazove i prij
             <a id="tw" class="btn" href="#" target="_blank" rel="noopener noreferrer">Podijeli na X</a>
             <a id="fb" class="btn" href="#" target="_blank" rel="noopener noreferrer">Podijeli na Facebook</a>
             <a id="li" class="btn" href="#" target="_blank" rel="noopener noreferrer">Podijeli na LinkedIn</a>
+            <button id="copyBtn" class="btn" type="button">Kopiraj tekst objave</button>
           </div>
+          <p class="hint">Ako se tekst ne kopira automatski kada klikneš Facebook/LinkedIn, prvo klikni „Kopiraj tekst objave“, a zatim otvori mrežu.</p>
           <div id="status" class="sr-only" aria-live="polite"></div>
         </div>
       </form>
@@ -151,397 +135,168 @@ Uviđajući vrijednost i značaj demokratije, ali i prepoznajući izazove i prij
   <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true">Tekst je kopiran. Nalijepi ga u objavu.</div>
 
   <script>
-    (function(){
-      const genBtn = document.getElementById('genBtn');
-      const dlBtn = document.getElementById('dlBtn');
-      const printBtn = document.getElementById('printBtn');
-      const shareBtn = document.getElementById('shareBtn');
-      const tw = document.getElementById('tw');
-      const fb = document.getElementById('fb');
-      const li = document.getElementById('li');
-      const pledgeTextEl = document.getElementById('pledgeText');
-      const consentEl = document.getElementById('consent');
-      const statusEl = document.getElementById('status');
-      const toastEl = document.getElementById('toast');
-      const container = document.querySelector('.container');
+  (function(){
+    const genBtn = document.getElementById('genBtn');
+    const dlBtn = document.getElementById('dlBtn');
+    const printBtn = document.getElementById('printBtn');
+    const shareBtn = document.getElementById('shareBtn');
+    const tw = document.getElementById('tw');
+    const fb = document.getElementById('fb');
+    const li = document.getElementById('li');
+    const copyBtn = document.getElementById('copyBtn');
+    const pledgeTextEl = document.getElementById('pledgeText');
+    const consentEl = document.getElementById('consent');
+    const statusEl = document.getElementById('status');
+    const toastEl = document.getElementById('toast');
 
-      const canvas = document.getElementById('cert');
-      const ctx = canvas.getContext('2d');
-      const certImg = document.getElementById('certImg');
-      const printCertImg = document.getElementById('printCertImg');
+    const container = document.querySelector('.container');
+    const canvas = document.getElementById('cert');
+    const ctx = canvas.getContext('2d');
+    const certImg = document.getElementById('certImg');
+    const printCertImg = document.getElementById('printCertImg');
 
-      const fname = document.getElementById('fname');
-      const lname = document.getElementById('lname');
-      const date = document.getElementById('date');
-      try { date.valueAsDate = new Date(); } catch {}
+    const fname = document.getElementById('fname');
+    const lname = document.getElementById('lname');
+    const date = document.getElementById('date');
+    try { date.valueAsDate = new Date(); } catch {}
 
-      const BASE_W = 1000, BASE_H = 1400;
-      // 🔁 Use the LANDING PAGE (GitHub Pages) so social previews work
-      const CAMPAIGN_URL = "https://pledge2025.github.io/idd-share/";
-      const CAMPAIGN_YEAR = 2025;
-      const HASHTAGS = '#IDD2025 #DanDemokratije';
+    const BASE_W = 1000, BASE_H = 1400;
+    const CAMPAIGN_URL = "https://pledge2025.github.io/idd-share/"; // landing page with OG/Twitter
+    const CAMPAIGN_YEAR = 2025;
+    const HASHTAGS = '#IDD2025 #DanDemokratije';
 
-      function getAccent(){ return '#003869'; }
+    function isIframe(){ try { return window.self !== window.top; } catch(e){ return true; } }
+    const isSecure = window.isSecureContext || location.protocol === 'https:';
 
-      function drawWrapped(context, text, x, y, maxWidth, lineHeight){
-        const words = text.split(/\s+/);
-        let line = '';
-        for (let i=0; i<words.length; i++){
-          const test = line ? line + ' ' + words[i] : words[i];
-          if (context.measureText(test).width > maxWidth){
-            context.fillText(line, x, y);
-            line = words[i];
-            y += lineHeight;
-          } else {
-            line = test;
-          }
-        }
-        if (line){ context.fillText(line, x, y); }
-        return y;
+    function getAccent(){ return '#003869'; }
+
+    function drawWrapped(context, text, x, y, maxWidth, lineHeight){
+      const words = text.split(/\s+/); let line = '';
+      for (let i=0; i<words.length; i++){
+        const test = line ? line + ' ' + words[i] : words[i];
+        if (context.measureText(test).width > maxWidth){ context.fillText(line, x, y); line = words[i]; y += lineHeight; }
+        else { line = test; }
       }
-
-      function wrapLines(context, text, maxWidth){
-        const words = text.split(/\s+/);
-        const lines = [];
-        let line = '';
-        for (let i=0; i<words.length; i++){
-          const test = line ? line + ' ' + words[i] : words[i];
-          if (context.measureText(test).width > maxWidth){
-            lines.push(line);
-            line = words[i];
-          } else {
-            line = test;
-          }
-        }
-        if (line) lines.push(line);
-        return lines;
+      if (line){ context.fillText(line, x, y); }
+      return y;
+    }
+    function wrapLines(context, text, maxWidth){
+      const words = text.split(/\s+/), lines=[]; let line='';
+      for (let i=0;i<words.length;i++){
+        const test=line?line+' '+words[i]:words[i];
+        if (context.measureText(test).width>maxWidth){ lines.push(line); line=words[i]; }
+        else line=test;
       }
-
-      function renderParagraphs(context, text, baseX, startY, maxW, lineHeight){
-        const paras = text.replace(/\r/g,'').split('\n');
-        let y = startY;
-        const bulletGap = 16, bulletIndent = 28;
-        for (let raw of paras){
-          const line = raw.trimEnd();
-          if (!line.trim()){ y += lineHeight; continue; }
-          const isBullet = /^([•\-])\s+/.test(line);
-          if (isBullet){
-            const content = line.replace(/^([•\-])\s+/, '');
-            const bulletX = baseX;
-            const textX = baseX + bulletIndent + bulletGap;
-            const avail = maxW - (bulletIndent + bulletGap);
-            context.beginPath();
-            context.fillStyle = '#111827';
-            context.arc(bulletX + bulletIndent/2, y - 8, 4, 0, Math.PI*2);
-            context.fill();
-            y = drawWrapped(context, content, textX, y, avail, lineHeight);
-            y += lineHeight;
-          } else {
-            y = drawWrapped(context, line, baseX, y, maxW, lineHeight);
-            y += lineHeight;
-          }
-        }
-        return y;
-      }
-
-      function drawCertificate(context, { first, last, dateStr, pledge, accent }){
-        context.clearRect(0, 0, BASE_W, BASE_H);
-        context.fillStyle = '#ffffff';
-        context.fillRect(0, 0, BASE_W, BASE_H);
-
-        const pad = 64;
-        const bodyPad = 70; // generous margins L/R
-
-        // Borders
-        context.strokeStyle = accent;
-        context.lineWidth = 6;
-        context.strokeRect(pad, pad, BASE_W - pad*2, BASE_H - pad*2);
-
-        context.strokeStyle = accent;
-        context.lineWidth = 3;
-        context.setLineDash([10,8]);
-        context.strokeRect(pad+18, pad+18, BASE_W - (pad+18)*2, BASE_H - (pad+18)*2);
-        context.setLineDash([]);
-
-        // Title
-        context.fillStyle = '#111827';
-        context.textAlign = 'center';
-        context.font = 'bold 40px Georgia, "Times New Roman", serif';
-        context.fillText('MOJE OBEĆANJE', BASE_W/2, 180);
-
-        // Subtitle
-        context.font = '24px Georgia, "Times New Roman", serif';
-        context.fillStyle = '#374151';
-        context.fillText('Povodom 15. septembra — Međunarodnog dana demokratije', BASE_W/2, 230);
-
-        // Name
-        const fullName = (first + ' ' + last).trim();
-        context.font = 'bold 40px Georgia, "Times New Roman", serif';
-        context.fillStyle = '#111827';
-        context.fillText(fullName || '—', BASE_W/2, 300);
-
-        // Rule under name
-        context.strokeStyle = '#111827';
-        context.lineWidth = 2;
-        const nameWidth = context.measureText(fullName || '—').width;
-        const ruleW = Math.min(720, Math.max(360, nameWidth + 80));
-        context.beginPath();
-        context.moveTo((BASE_W - ruleW)/2, 318);
-        context.lineTo((BASE_W + ruleW)/2, 318);
-        context.stroke();
-
-        // Body
-        context.textAlign = 'left';
-        context.fillStyle = '#111827';
-        context.font = '24px Georgia, "Times New Roman", serif';
-        const bodyX = pad + bodyPad;
-        const bodyY = 380;
-        const bodyW = BASE_W - (pad + bodyPad) * 2;
-        const lineH = 36;
-        renderParagraphs(context, pledge.trim(), bodyX, bodyY, bodyW, lineH);
-
-        // Footer (date + signature)
-        context.font = '20px Georgia, "Times New Roman", serif';
-        context.fillStyle = '#374151';
-        const leftX = pad + bodyPad;
-        const rightX = BASE_W - pad - bodyPad;
-
-        context.fillText('Datum:', leftX, BASE_H - 180);
-        context.fillStyle = '#111827';
-        context.fillText(dateStr || '—', leftX + 90, BASE_H - 180);
-
-        context.strokeStyle = '#111827';
-        context.lineWidth = 2;
-        context.beginPath();
-        context.moveTo(rightX - 320, BASE_H - 190);
-        context.lineTo(rightX, BASE_H - 190);
-        context.stroke();
-        context.fillStyle = '#374151';
-        context.textAlign = 'right';
-        context.fillText('Potpis', rightX - 120, BASE_H - 160);
-
-        // Closing sentence
-        const closing = 'Potpisivanjem ove izjave postajem dio globalne zajednice koja slavi i jača demokratiju — danas i svakoga dana.';
-        context.textAlign = 'center';
-        context.fillStyle = '#374151';
-        context.font = '14px Georgia, "Times New Roman", serif';
-        const closingMaxW = BASE_W - pad*2 - 100;
-        const lines = wrapLines(context, closing, closingMaxW);
-        const startY = BASE_H - 100 - ((lines.length - 1) * 26) / 2;
-        lines.forEach((ln, i) => context.fillText(ln, BASE_W/2, startY + i * 26));
-      }
-
-      // === PRINT: render at A4 300DPI width for sharp output ===
-      function renderHighRes(payload){
-        const A4_W = 2480; // px (A4 300DPI width)
-        const scale = A4_W / BASE_W; // ~2.48
-        const off = document.createElement('canvas');
-        off.width = Math.round(BASE_W * scale);
-        off.height = Math.round(BASE_H * scale);
-        const octx = off.getContext('2d');
-        octx.setTransform(scale, 0, 0, scale, 0, 0);
-        drawCertificate(octx, payload);
-        return off.toDataURL('image/png');
-      }
-
-      function enableActions(enable){
-        [dlBtn, printBtn, shareBtn].forEach(b=>{
-          b.disabled = !enable;
-          b.setAttribute('aria-disabled', String(!enable));
-        });
-      }
-
-      // === Share text builder used by all shares ===
-      function getShareText(includeName){
-        const fullName = `${fname.value.trim()} ${lname.value.trim()}`.trim();
-        const namePart = includeName && fullName ? ` (${fullName})` : '';
-        return `Upravo sam potpisao/la moje obećanje povodom Međunarodnog dana demokratije ${CAMPAIGN_YEAR}!${namePart} Pridruži se i potpiši i ti. ${HASHTAGS}`;
-      }
-
-      // --- Social share links with encoding + UTM tagging ---
-      function uenc(v){ return encodeURIComponent(v); }
-      function withUtm(base, src){
-        try {
-          const u = new URL(base);
-          u.searchParams.set('utm_source', src);
-          u.searchParams.set('utm_medium', 'share');
-          u.searchParams.set('utm_campaign', `idd${CAMPAIGN_YEAR}`);
-          return u.toString();
-        } catch(e){ return base; }
-      }
-
-      function updateShareLinks(nameIncluded){
-        const baseText = getShareText(nameIncluded);
-        const urlX  = withUtm(CAMPAIGN_URL, 'x');
-        const urlFB = withUtm(CAMPAIGN_URL, 'facebook');
-        const urlLI = withUtm(CAMPAIGN_URL, 'linkedin');
-
-        // X / Twitter
-        tw.href = `https://x.com/intent/tweet?text=${uenc(baseText)}&url=${uenc(urlX)}`;
-
-        // Facebook (quote may be ignored). Single hashtag without '#'
-        const fbHashtag = 'IDD2025';
-        fb.href = `https://www.facebook.com/sharer/sharer.php?u=${uenc(urlFB)}&quote=${uenc(baseText)}&hashtag=%23${fbHashtag}`;
-
-        // LinkedIn (no custom text; URL only)
-        li.href = `https://www.linkedin.com/sharing/share-offsite/?url=${uenc(urlLI)}`;
-
-        // Harden links
-        [tw, fb, li].forEach(a=>a.setAttribute('referrerpolicy','no-referrer'));
-      }
-
-      // Small toast helper
-      let toastTimer = null;
-      function showToast(msg){
-        toastEl.textContent = msg;
-        toastEl.classList.add('show');
-        clearTimeout(toastTimer);
-        toastTimer = setTimeout(()=>toastEl.classList.remove('show'), 2200);
-      }
-
-      // Copy helper (HTTPS required except localhost)
-      async function copyShareText(){
-        const text = getShareText(consentEl.checked);
-        try{
-          if (navigator.clipboard && (window.isSecureContext || location.hostname === 'localhost')){
-            await navigator.clipboard.writeText(text);
-            showToast('Tekst je kopiran. Nalijepi ga u objavu.');
-          } else {
-            // Fallback textarea method
-            const ta = document.createElement('textarea');
-            ta.value = text; ta.style.position='fixed'; ta.style.left='-9999px';
-            document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
-            showToast('Tekst je kopiran. Nalijepi ga u objavu.');
-          }
-        } catch(e){ /* Silent; not fatal */ }
-      }
-
-      function generate(){
-        if (!fname.value.trim() || !lname.value.trim() || !date.value){
-          alert('Molimo unesite ime, prezime i datum.');
-          return;
-        }
-        statusEl.textContent = 'Generišem sertifikat…';
-        container.setAttribute('aria-busy','true');
-        const payload = {
-          first: fname.value.trim(),
-          last: lname.value.trim(),
-          dateStr: new Date(date.value + 'T00:00:00').toLocaleDateString('sr-RS'),
-          pledge: pledgeTextEl.value,
-          accent: getAccent()
-        };
-        const exportUrl = renderHighRes(payload);
-        certImg.src = exportUrl;
-        printCertImg.src = exportUrl;
-        enableActions(true);
-        updateShareLinks(consentEl.checked);
-        statusEl.textContent = 'Sertifikat je generisan (PNG).';
-        container.setAttribute('aria-busy','false');
-      }
-
-      // === DATA URL → File helpers (no fetch()) ===
-      function dataUrlToBlob(dataURL){
-        const [meta, data] = dataURL.split(',');
-        const mime = /data:(.*?);base64/.exec(meta)?.[1] || 'image/png';
-        const bin = atob(data);
-        const len = bin.length;
-        const bytes = new Uint8Array(len);
-        for (let i=0;i<len;i++) bytes[i] = bin.charCodeAt(i);
-        return new Blob([bytes], { type: mime });
-      }
-
-      async function makeShareFile(dataURL, filename){
-        const blob = dataUrlToBlob(dataURL);
-        // If too large, re-encode to WebP for sharing only
-        if (blob.size > 8 * 1024 * 1024 && 'createImageBitmap' in window){
-          const bmp = await createImageBitmap(blob);
-          const c = document.createElement('canvas');
-          c.width = bmp.width; c.height = bmp.height;
-          const cctx = c.getContext('2d');
-          cctx.drawImage(bmp, 0, 0);
-          const webp = await new Promise(res=>c.toBlob(res, 'image/webp', 0.9));
-          return new File([webp], filename.replace(/\.png$/, '.webp'), { type: 'image/webp' });
-        }
-        return new File([blob], filename, { type: blob.type || 'image/png' });
-      }
-
-      // Robust print
-      async function printSafely(){
-        const ensureSrc = printCertImg.src || certImg.src;
-        if (!ensureSrc){ return; }
-        if (!printCertImg.src){ printCertImg.src = ensureSrc; }
-        try{
-          if (printCertImg.decode) { await printCertImg.decode(); }
-          else {
-            await new Promise((res)=>{
-              if (printCertImg.complete) return res();
-              printCertImg.onload = ()=>{ printCertImg.onload = null; res(); };
-              printCertImg.onerror = ()=>{ printCertImg.onerror = null; res(); };
-            });
-          }
-        } catch(_) {}
-        setTimeout(()=>window.print(), 0);
-      }
-
-      // Web Share: prefer files, fallback to text+URL
-      async function shareSafely(){
-        const isSecure = window.isSecureContext || location.protocol === 'https:';
-        if (!isSecure){
-          alert('Web Share radi samo preko HTTPS-a. Otvorite ovu stranicu preko sigurnog (https) URL-a ili koristite dugmad za društvene mreže.');
-          return;
-        }
-        const text = getShareText(consentEl.checked);
-        const url = CAMPAIGN_URL;
-
-        // Try file share first (without url—iOS may ignore url when files present)
-        const src = printCertImg.src || certImg.src;
-        if (src && 'canShare' in navigator && 'share' in navigator){
-          try{
-            const safeName = [fname.value.trim(), lname.value.trim()].filter(Boolean).join('_').replace(/\s+/g,'-') || 'obecanje';
-            const file = await makeShareFile(src, `obecanje_${safeName}.png`);
-            const withFile = { title: 'Obećanje', text, files: [file] };
-            if (navigator.canShare(withFile)){
-              await navigator.share(withFile);
-              return;
-            }
-          } catch(e){ /* fall back to text+url */ }
-        }
-
-        // Fallback: text + URL (widest support)
-        if ('share' in navigator){
-          try{ await navigator.share({ title:'Obećanje', text, url }); }
-          catch(e){ if (!e || e.name !== 'AbortError') alert('Dijeljenje nije uspjelo. Pokušajte preko X/Facebook/LinkedIn.'); }
+      if(line) lines.push(line); return lines;
+    }
+    function renderParagraphs(context, text, baseX, startY, maxW, lineHeight){
+      const paras = text.replace(/\r/g,'').split('\n');
+      let y = startY; const bulletGap=16, bulletIndent=28;
+      for (let raw of paras){
+        const line = raw.trimEnd(); if (!line.trim()){ y += lineHeight; continue; }
+        const isBullet = /^([•\-])\s+/.test(line);
+        if (isBullet){
+          const content = line.replace(/^([•\-])\s+/, '');
+          const bulletX = baseX; const textX = baseX + bulletIndent + bulletGap; const avail = maxW - (bulletIndent + bulletGap);
+          context.beginPath(); context.fillStyle = '#111827'; context.arc(bulletX + bulletIndent/2, y - 8, 4, 0, Math.PI*2); context.fill();
+          y = drawWrapped(context, content, textX, y, avail, lineHeight); y += lineHeight;
         } else {
-          alert('Ovaj pregledač ne podržava Web Share. Koristite dugmad za društvene mreže.');
+          y = drawWrapped(context, line, baseX, y, maxW, lineHeight); y += lineHeight;
         }
       }
+      return y;
+    }
+    function drawCertificate(context, { first, last, dateStr, pledge, accent }){
+      context.clearRect(0, 0, BASE_W, BASE_H);
+      context.fillStyle = '#ffffff'; context.fillRect(0, 0, BASE_W, BASE_H);
+      const pad=64, bodyPad=70;
+      context.strokeStyle = accent; context.lineWidth = 6; context.strokeRect(pad, pad, BASE_W - pad*2, BASE_H - pad*2);
+      context.strokeStyle = accent; context.lineWidth = 3; context.setLineDash([10,8]); context.strokeRect(pad+18, pad+18, BASE_W - (pad+18)*2, BASE_H - (pad+18)*2); context.setLineDash([]);
+      context.fillStyle = '#111827'; context.textAlign='center'; context.font='bold 40px Georgia, "Times New Roman", serif'; context.fillText('MOJE OBEĆANJE', BASE_W/2, 180);
+      context.font='24px Georgia, "Times New Roman", serif'; context.fillStyle='#374151'; context.fillText('Povodom 15. septembra — Međunarodnog dana demokratije', BASE_W/2, 230);
+      const fullName = (first + ' ' + last).trim(); context.font='bold 40px Georgia, "Times New Roman", serif'; context.fillStyle='#111827'; context.fillText(fullName || '—', BASE_W/2, 300);
+      context.strokeStyle = '#111827'; context.lineWidth = 2; const nameWidth = context.measureText(fullName || '—').width; const ruleW = Math.min(720, Math.max(360, nameWidth + 80)); context.beginPath(); context.moveTo((BASE_W - ruleW)/2, 318); context.lineTo((BASE_W + ruleW)/2, 318); context.stroke();
+      context.textAlign='left'; context.fillStyle='#111827'; context.font='24px Georgia, "Times New Roman", serif'; const bodyX = pad + bodyPad; const bodyY=380; const bodyW = BASE_W - (pad + bodyPad) * 2; const lineH=36; renderParagraphs(context, pledge.trim(), bodyX, bodyY, bodyW, lineH);
+      context.font='20px Georgia, "Times New Roman", serif'; context.fillStyle='#374151'; const leftX = pad + bodyPad; const rightX = BASE_W - pad - bodyPad; context.fillText('Datum:', leftX, BASE_H - 180); context.fillStyle='#111827'; context.fillText(dateStr || '—', leftX + 90, BASE_H - 180);
+      context.strokeStyle = '#111827'; context.lineWidth = 2; context.beginPath(); context.moveTo(rightX - 320, BASE_H - 190); context.lineTo(rightX, BASE_H - 190); context.stroke(); context.fillStyle='#374151'; context.textAlign='right'; context.fillText('Potpis', rightX - 120, BASE_H - 160);
+      const closing='Potpisivanjem ove izjave postajem dio globalne zajednice koja slavi i jača demokratiju — danas i svakoga dana.'; context.textAlign='center'; context.fillStyle='#374151'; context.font='14px Georgia, "Times New Roman", serif'; const closingMaxW = BASE_W - pad*2 - 100; const lines = wrapLines(context, closing, closingMaxW); const startY = BASE_H - 100 - ((lines.length - 1) * 26) / 2; lines.forEach((ln,i)=>context.fillText(ln, BASE_W/2, startY + i * 26));
+    }
 
-      // Events
-      genBtn.addEventListener('click', generate);
+    function renderHighRes(payload){
+      const A4_W = 2480; const scale = A4_W / BASE_W; const off = document.createElement('canvas'); off.width = Math.round(BASE_W * scale); off.height = Math.round(BASE_H * scale); const octx = off.getContext('2d'); octx.setTransform(scale,0,0,scale,0,0); drawCertificate(octx, payload); return off.toDataURL('image/png');
+    }
 
-      dlBtn.addEventListener('click', ()=>{
-        const safe = [fname.value.trim(), lname.value.trim()].filter(Boolean).join('_').replace(/\s+/g,'-') || 'obecanje';
-        const a = document.createElement('a');
-        a.download = `obecanje_${safe}.png`;
-        a.href = printCertImg.src || certImg.src;
-        if (a.href) a.click();
-      });
+    function enableActions(enable){ [dlBtn, printBtn, shareBtn].forEach(b=>{ b.disabled = !enable; b.setAttribute('aria-disabled', String(!enable)); }); }
 
-      printBtn.addEventListener('click', printSafely);
-      shareBtn.addEventListener('click', shareSafely);
+    function getShareText(includeName){ const fullName = `${fname.value.trim()} ${lname.value.trim()}`.trim(); const namePart = includeName && fullName ? ` (${fullName})` : ''; return `Upravo sam potpisao/la moje obećanje povodom Međunarodnog dana demokratije ${CAMPAIGN_YEAR}!${namePart} Pridruži se i potpiši i ti. ${HASHTAGS}`; }
 
-      // Social buttons — copy share text BEFORE navigation; avoid popups in Google Sites
-      fb.addEventListener('pointerdown', async ()=>{ await copyShareText(); });
-      li.addEventListener('pointerdown', async ()=>{ await copyShareText(); });
-      // X (Twitter) – no copy needed
+    function uenc(v){ return encodeURIComponent(v); }
+    function withUtm(base, src){ try { const u = new URL(base); u.searchParams.set('utm_source', src); u.searchParams.set('utm_medium', 'share'); u.searchParams.set('utm_campaign', `idd${CAMPAIGN_YEAR}`); return u.toString(); } catch(e){ return base; } }
 
-      consentEl.addEventListener('change',()=>updateShareLinks(consentEl.checked));
-      [fname,lname].forEach(el=>el.addEventListener('input',()=>updateShareLinks(consentEl.checked)));
+    function updateShareLinks(nameIncluded){
+      const baseText = getShareText(nameIncluded);
+      const urlX = withUtm(CAMPAIGN_URL, 'x');
+      const urlFB = withUtm(CAMPAIGN_URL, 'facebook');
+      const urlLI = withUtm(CAMPAIGN_URL, 'linkedin');
+      tw.href = `https://x.com/intent/tweet?text=${uenc(baseText)}&url=${uenc(urlX)}`;
+      fb.href = `https://www.facebook.com/sharer/sharer.php?u=${uenc(urlFB)}&quote=${uenc(baseText)}&hashtag=%23IDD2025`;
+      li.href = `https://www.linkedin.com/sharing/share-offsite/?url=${uenc(urlLI)}`;
+      [tw,fb,li].forEach(a=>a.setAttribute('referrerpolicy','no-referrer'));
+    }
 
-      // Init
-      enableActions(false);
-      updateShareLinks(false);
-    })();
+    let toastTimer = null; function showToast(msg){ toastEl.textContent = msg; toastEl.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(()=>toastEl.classList.remove('show'), 2200); }
+
+    async function copyShareText(){
+      const text = getShareText(consentEl.checked);
+      try{
+        if (navigator.clipboard && isSecure){ await navigator.clipboard.writeText(text); showToast('Tekst je kopiran. Nalijepi ga u objavu.'); }
+        else { const ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.left='-9999px'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); showToast('Tekst je kopiran. Nalijepi ga u objavu.'); }
+      } catch(e){ /* ignore */ }
+    }
+
+    function generate(){
+      if (!fname.value.trim() || !lname.value.trim() || !date.value){ alert('Molimo unesite ime, prezime i datum.'); return; }
+      statusEl.textContent = 'Generišem sertifikat…';
+      const payload = { first: fname.value.trim(), last: lname.value.trim(), dateStr: new Date(date.value + 'T00:00:00').toLocaleDateString('sr-RS'), pledge: pledgeTextEl.value, accent: getAccent() };
+      const exportUrl = renderHighRes(payload); certImg.src = exportUrl; printCertImg.src = exportUrl; enableActions(true); updateShareLinks(consentEl.checked); statusEl.textContent = 'Sertifikat je generisan (PNG).';
+    }
+
+    function dataUrlToBlob(dataURL){ const [meta, data] = dataURL.split(','); const mime = /data:(.*?);base64/.exec(meta)?.[1] || 'image/png'; const bin = atob(data); const len = bin.length; const bytes = new Uint8Array(len); for (let i=0;i<len;i++) bytes[i] = bin.charCodeAt(i); return new Blob([bytes], { type: mime }); }
+    async function makeShareFile(dataURL, filename){ const blob = dataUrlToBlob(dataURL); if (blob.size > 8*1024*1024 && 'createImageBitmap' in window){ const bmp=await createImageBitmap(blob); const c=document.createElement('canvas'); c.width=bmp.width; c.height=bmp.height; const z=c.getContext('2d'); z.drawImage(bmp,0,0); const webp=await new Promise(res=>c.toBlob(res,'image/webp',0.9)); return new File([webp], filename.replace(/\.png$/, '.webp'), { type: 'image/webp' }); } return new File([blob], filename, { type: blob.type || 'image/png' }); }
+
+    async function printSafely(){ const ensureSrc = printCertImg.src || certImg.src; if (!ensureSrc) return; if (!printCertImg.src) printCertImg.src = ensureSrc; try{ if (printCertImg.decode) await printCertImg.decode(); }catch(_){} setTimeout(()=>window.print(),0); }
+
+    async function shareSafely(){
+      if (!isSecure || isIframe()){ alert('Dijeljenje sa uređaja nije dostupno u ovom okruženju. Koristi X/Facebook/LinkedIn dugmad.'); return; }
+      const text = getShareText(consentEl.checked); const url = CAMPAIGN_URL; const src = printCertImg.src || certImg.src;
+      if (src && 'canShare' in navigator && 'share' in navigator){
+        try{ const safeName=[fname.value.trim(),lname.value.trim()].filter(Boolean).join('_').replace(/\s+/g,'-')||'obecanje'; const file=await makeShareFile(src,`obecanje_${safeName}.png`); const withFile={ title:'Obećanje', text, files:[file] }; if (navigator.canShare(withFile)){ await navigator.share(withFile); return; } }catch(e){}
+      }
+      if ('share' in navigator){ try{ await navigator.share({ title:'Obećanje', text, url }); } catch(e){ if (!e || e.name !== 'AbortError') alert('Dijeljenje nije uspjelo. Pokušajte preko X/Facebook/LinkedIn.'); } }
+      else alert('Ovaj pregledač ne podržava Web Share. Koristite dugmad za društvene mreže.');
+    }
+
+    // Events
+    genBtn.addEventListener('click', generate);
+    dlBtn.addEventListener('click', ()=>{ const safe=[fname.value.trim(), lname.value.trim()].filter(Boolean).join('_').replace(/\s+/g,'-')||'obecanje'; const a=document.createElement('a'); a.download=`obecanje_${safe}.png`; a.href=printCertImg.src||certImg.src; if (a.href) a.click(); });
+    printBtn.addEventListener('click', printSafely);
+    shareBtn.addEventListener('click', shareSafely);
+
+    // Social buttons — DO NOT block navigation. Copy if possible, but let the link open in new tab.
+    fb.addEventListener('click', ()=>{ copyShareText(); });
+    li.addEventListener('click', ()=>{ copyShareText(); });
+    copyBtn.addEventListener('click', copyShareText);
+
+    consentEl.addEventListener('change',()=>updateShareLinks(consentEl.checked));
+    [fname,lname].forEach(el=>el.addEventListener('input',()=>updateShareLinks(consentEl.checked)));
+
+    // Init
+    enableActions(false);
+    updateShareLinks(false);
+
+    // Hide Web Share if in iframe/insecure
+    if (isIframe() || !isSecure){ shareBtn.style.display='none'; }
+  })();
   </script>
 </body>
 </html>
