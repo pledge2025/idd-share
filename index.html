@@ -38,7 +38,6 @@
     .pledge-preview li::before{content:"•"; position:absolute; left:0; top:0; line-height:1.6; color:var(--ink);}
 
     .canvas-wrap{margin-top:16px}
-    #cert{width:100%; height:auto; display:block}
     #certImg{width:100%; height:auto; display:block; background:#fff; border:1px solid #d1d5db; border-radius:12px}
 
     .sr-only{
@@ -61,15 +60,6 @@
     }
     .print-only{display:none}
     .footer{margin-top:20px; color:var(--muted); font-size:.9rem}
-
-    /* tiny toast */
-    .toast{
-      position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
-      background: #111827; color: #fff; padding: 10px 14px; border-radius: 10px;
-      box-shadow: var(--shadow); font-size: .95rem; opacity: 0; pointer-events: none;
-      transition: opacity .25s ease;
-    }
-    .toast.show{ opacity: 1; }
   </style>
 </head>
 <body>
@@ -77,7 +67,6 @@
     <div class="card no-print">
       <h1>Potpiši obećanje</h1>
       <p class="muted"><i>*Napomena: Popuni svoje podatke, generiši sertifikat, a potom ga preuzmi, odštampaj ili podijeli. (Podaci se ne čuvaju.)</i></p>
-     
 
       <section class="pledge-section" aria-labelledby="pledge-heading">
         <div class="label" id="pledge-heading">Tekst obećanja</div>
@@ -118,19 +107,18 @@ Uviđajući vrijednost i značaj demokratije, ali i prepoznajući izazove i prij
         </div>
         <div class="field">
           <label class="label">Saglasnost za korišćenje imena u objavama</label>
-          <label><input id="consent" type="checkbox"> <span>Saglasan/na sam da se moje ime koristi u objavama</span></label>
+          <label for="consent"><input id="consent" type="checkbox"> <span>Saglasan/na sam da se moje ime koristi u objavama</span></label>
         </div>
 
         <div class="field" style="grid-column:1 / -1">
           <div class="actions">
             <button id="genBtn" class="btn primary" type="button">Generiši sertifikat</button>
             <button id="dlBtn" class="btn" type="button" aria-disabled="true">Preuzmi PNG</button>
-            <button id="printBtn" class="btn" type="button" aria-disabled="true">Štampaj / Sačuvaj PDF</button>
+            <button id="printBtn" class="btn" type="button" aria-disabled="true">Štampaj</button>
           </div>
 
           <!-- Social share (SSS-powered). WhatsApp & Telegram removed -->
           <div class="actions">
-            <a class="btn" data-share="native" href="#">Podijeli (Web Share)</a>
             <a class="btn" data-share="x" href="#">X</a>
             <a class="btn" data-share="facebook" href="#">Facebook</a>
             <a class="btn" data-share="linkedin" href="#">LinkedIn</a>
@@ -142,17 +130,14 @@ Uviđajući vrijednost i značaj demokratije, ali i prepoznajući izazove i prij
       </form>
 
       <div class="canvas-wrap">
-        <canvas id="cert" class="sr-only" aria-hidden="true"></canvas>
-        <img id="certImg" alt="Pregled sertifikata" />
+        <img id="certImg" alt="Pregled sertifikata" loading="lazy" />
       </div>
     </div>
 
     <div class="print-only">
-      <img id="printCertImg" alt="Sertifikat za štampu">
+      <img id="printCertImg" alt="Sertifikat za štampu" loading="lazy">
     </div>
   </div>
-
-  <div id="toast" class="toast" role="status" aria-live="polite">Tekst je kopiran. Nalijepi ga u objavu.</div>
 
   <!-- Simple Social Sharing (SSS) -->
   <script>
@@ -202,7 +187,6 @@ Uviđajući vrijednost i značaj demokratije, ali i prepoznajući izazove i prij
       document.querySelectorAll('[data-share]').forEach(el=>{
         const t = el.dataset.share;
         if (t === 'native'){
-          // remove previous listeners if any by cloning
           const replacement = el.cloneNode(true);
           el.replaceWith(replacement);
           replacement.addEventListener('click', async e=>{
@@ -232,8 +216,6 @@ Uviđajući vrijednost i značaj demokratije, ali i prepoznajući izazove i prij
       const pledgeTextEl = document.getElementById('pledgeText');
       const statusEl = document.getElementById('status');
 
-      const canvas = document.getElementById('cert');
-      const ctx = canvas.getContext('2d');
       const certImg = document.getElementById('certImg');
       const printCertImg = document.getElementById('printCertImg');
 
@@ -247,6 +229,7 @@ Uviđajući vrijednost i značaj demokratije, ali i prepoznajući izazove i prij
       const CAMPAIGN_URL = "https://sites.google.com/ndi.org/idd2025mne/moje-obe%C4%87anje";
       const CAMPAIGN_YEAR = 2025;
       const HASHTAGS = '#IDD2025 #DanDemokratije';
+      const HASHTAGS_CSV = HASHTAGS.replace(/#/g,'').split(/\s+/).filter(Boolean).join(',');
 
       function getAccent(){ return '#003869'; }
 
@@ -287,7 +270,7 @@ Uviđajući vrijednost i značaj demokratije, ali i prepoznajući izazove i prij
       function renderParagraphs(context, text, baseX, startY, maxW, lineHeight){
         const paras = text.replace(/\r/g,'').split('\n');
         let y = startY;
-        const bulletGap = 16, bulletIndent = 28;
+        const bulletGap = 16, bulletIndent = 28, bulletBaselineNudge = 10; // tweak for optical centering
         for (let raw of paras){
           const line = raw.trimEnd();
           if (!line.trim()){ y += lineHeight; continue; }
@@ -299,7 +282,7 @@ Uviđajući vrijednost i značaj demokratije, ali i prepoznajući izazove i prij
             const avail = maxW - (bulletIndent + bulletGap);
             context.beginPath();
             context.fillStyle = '#111827';
-            context.arc(bulletX + bulletIndent/2, y - 8, 4, 0, Math.PI*2);
+            context.arc(bulletX + bulletIndent/2, y - bulletBaselineNudge, 4, 0, Math.PI*2);
             context.fill();
             y = drawWrapped(context, content, textX, y, avail, lineHeight);
             y += lineHeight;
@@ -411,7 +394,7 @@ Uviđajući vrijednost i značaj demokratije, ali i prepoznajući izazove i prij
 
       function enableActions(enable){
         [dlBtn, printBtn].forEach(b=>{
-          b.setAttribute('aria-disabled', String(!enable));
+          if (b) b.setAttribute('aria-disabled', String(!enable));
         });
       }
 
@@ -426,7 +409,7 @@ Uviđajući vrijednost i značaj demokratije, ali i prepoznajući izazove i prij
         const payload = {
           first: fname.value.trim(),
           last: lname.value.trim(),
-          dateStr: new Date(date.value + 'T00:00:00').toLocaleDateString('sr-RS'),
+          dateStr: new Date(date.value + 'T00:00:00').toLocaleDateString('sr-Latn-RS'),
           pledge: pledgeTextEl.value,
           accent: getAccent()
         };
@@ -452,7 +435,7 @@ Uviđajući vrijednost i značaj demokratije, ali i prepoznajući izazove i prij
           url: CAMPAIGN_URL,
           title: 'Moje obećanje',
           text: shareText,
-          hashtags: HASHTAGS.replace(/#/g,'').split(/\s+/).filter(Boolean).join(','), // "IDD2025,DanDemokratije"
+          hashtags: HASHTAGS_CSV, // "IDD2025,DanDemokratije"
           via: '',
           fileDataUrl: exportUrl,
           filename: `obecanje_${safeName}.png`
@@ -488,14 +471,14 @@ Uviđajući vrijednost i značaj demokratije, ali i prepoznajući izazove i prij
         if (a.href) a.click();
       });
 
-      printBtn.addEventListener('click', printSafely);
+      if (printBtn) printBtn.addEventListener('click', printSafely);
 
       // ---- Initial share wiring on page load (generic text, no PNG) ----
       SSS.wireShareButtons({
         url: CAMPAIGN_URL,
         title: 'Moje obećanje',
         text: `Pridružujem se obilježavanju Međunarodnog dana demokratije ${CAMPAIGN_YEAR}. ${HASHTAGS}`,
-        hashtags: HASHTAGS.replace(/#/g,'').split(/\s+/).filter(Boolean).join(','),
+        hashtags: HASHTAGS_CSV,
         via: ''
       });
 
