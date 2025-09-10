@@ -231,6 +231,10 @@ Uviđajući vrijednost i značaj demokratije, ali i prepoznajući izazove i prij
       const HASHTAGS = '#IDD2025 #DanDemokratije';
       const HASHTAGS_CSV = HASHTAGS.replace(/#/g,'').split(/\s+/).filter(Boolean).join(',');
 
+      // Heuristic: smaller export scale on mobile to avoid huge data URLs (blanks/crashes in iOS print)
+      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const EXPORT_SCALE = isMobile ? 1.7 : 2.4; // MOBILE PRINT FIX: smaller, still sharp
+
       function getAccent(){ return '#003869'; }
 
       function drawWrapped(context, text, x, y, maxWidth, lineHeight){
@@ -270,7 +274,7 @@ Uviđajući vrijednost i značaj demokratije, ali i prepoznajući izazove i prij
       function renderParagraphs(context, text, baseX, startY, maxW, lineHeight){
         const paras = text.replace(/\r/g,'').split('\n');
         let y = startY;
-        const bulletGap = 16, bulletIndent = 28, bulletBaselineNudge = 10; // tweak for optical centering
+        const bulletGap = 16, bulletIndent = 28, bulletBaselineNudge = 10;
         for (let raw of paras){
           const line = raw.trimEnd();
           if (!line.trim()){ y += lineHeight; continue; }
@@ -382,7 +386,7 @@ Uviđajući vrijednost i značaj demokratije, ali i prepoznajući izazove i prij
       }
 
       function renderHighRes(payload){
-        const SCALE = 2.4;
+        const SCALE = EXPORT_SCALE; // MOBILE PRINT FIX
         const off = document.createElement('canvas');
         off.width = Math.round(BASE_W * SCALE);
         off.height = Math.round(BASE_H * SCALE);
@@ -390,6 +394,15 @@ Uviđajući vrijednost i značaj demokratije, ali i prepoznajući izazove i prij
         octx.setTransform(SCALE, 0, 0, SCALE, 0, 0);
         drawCertificate(octx, payload);
         return off.toDataURL('image/png');
+      }
+
+      function dataUrlToBlobUrl(dataUrl){
+        // Faster & more reliable for printing on mobile than huge data URLs
+        const bin = atob(dataUrl.split(',')[1]);
+        const arr = new Uint8Array(bin.length);
+        for (let i=0; i<bin.length; i++) arr[i] = bin.charCodeAt(i);
+        const blob = new Blob([arr], { type: 'image/png' });
+        return URL.createObjectURL(blob);
       }
 
       function enableActions(enable){
@@ -414,9 +427,10 @@ Uviđajući vrijednost i značaj demokratije, ali i prepoznajući izazove i prij
           accent: getAccent()
         };
 
-        const exportUrl = renderHighRes(payload);
-        certImg.src = exportUrl;
-        printCertImg.src = exportUrl;
+        const exportDataUrl = renderHighRes(payload);
+        const blobUrl = dataUrlToBlobUrl(exportDataUrl); // MOBILE PRINT FIX: use blob URL
+        certImg.src = blobUrl;
+        printCertImg.src = blobUrl;
 
         enableActions(true);
         statusEl.textContent = 'Sertifikat je generisan (PNG).';
@@ -435,17 +449,70 @@ Uviđajući vrijednost i značaj demokratije, ali i prepoznajući izazove i prij
           url: CAMPAIGN_URL,
           title: 'Moje obećanje',
           text: shareText,
-          hashtags: HASHTAGS_CSV, // "IDD2025,DanDemokratije"
+          hashtags: HASHTAGS_CSV,
           via: '',
-          fileDataUrl: exportUrl,
+          fileDataUrl: exportDataUrl, // keep data URL for Web Share API file construction
           filename: `obecanje_${safeName}.png`
         });
+      }
+
+      // Print in a popup window for mobile reliability (iOS/Android)
+      async function printInNewWindow(srcUrl){
+        const w = window.open('', '_blank');
+        if (!w) { alert('Dozvolite iskačuće prozore (pop-up) za štampu.'); return; }
+
+        w.document.open();
+        w.document.write(`<!doctype html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Štampa</title>
+  <style>
+    @page { size: A4 portrait; margin: 0; }
+    html, body { margin:0; padding:0; }
+    body { background:#fff; }
+    img { display:block; width:210mm; height:auto; max-width:100%; margin:0 auto; }
+  </style>
+</head>
+<body>
+  <img id="img" alt="Sertifikat" src="">
+  <script>
+    (function(){
+      const img = document.getElementById('img');
+      img.addEventListener('load', function(){
+        setTimeout(function(){
+          try { window.print(); } catch(_) {}
+          // close tab after print on mobile (best-effort)
+          setTimeout(function(){ window.close(); }, 500);
+        }, 50);
+      });
+    })();
+  <\/script>
+</body>
+</html>`);
+        w.document.close();
+
+        // Set src after the window’s DOM exists
+        const trySet = () => {
+          const img = w.document.getElementById('img');
+          if (img) { img.src = srcUrl; }
+          else { setTimeout(trySet, 10); }
+        };
+        trySet();
       }
 
       // Robust print
       async function printSafely(){
         const ensureSrc = printCertImg.src || certImg.src;
         if (!ensureSrc){ return; }
+
+        // MOBILE PRINT FIX: use popup print on mobile for reliability
+        if (isMobile){
+          await printInNewWindow(ensureSrc);
+          return;
+        }
+
+        // Desktop path: ensure decode then print
         if (!printCertImg.src){ printCertImg.src = ensureSrc; }
         try{
           if (printCertImg.decode) { await printCertImg.decode(); }
