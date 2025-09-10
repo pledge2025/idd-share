@@ -231,9 +231,15 @@ Uviđajući vrijednost i značaj demokratije, ali i prepoznajući izazove i prij
       const HASHTAGS = '#IDD2025 #DanDemokratije';
       const HASHTAGS_CSV = HASHTAGS.replace(/#/g,'').split(/\s+/).filter(Boolean).join(',');
 
-      // Heuristic: smaller export scale on mobile to avoid huge data URLs (blanks/crashes in iOS print)
-      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-      const EXPORT_SCALE = isMobile ? 1.7 : 2.4; // MOBILE PRINT FIX: smaller, still sharp
+      const ua = navigator.userAgent;
+      const isIOS = /iP(hone|ad|od)/i.test(ua);
+      const isMobile = /Android|iPhone|iPad|iPod/i.test(ua);
+
+      // Slightly lower scale for mobile to keep data sizes sane
+      const EXPORT_SCALE = isMobile ? 1.7 : 2.4;
+
+      // Will hold the latest exports
+      let last = { pngDataUrl: null, jpegDataUrl: null, blobUrl: null, filename: null };
 
       function getAccent(){ return '#003869'; }
 
@@ -385,24 +391,28 @@ Uviđajući vrijednost i značaj demokratije, ali i prepoznajući izazove i prij
         lines.forEach((ln, i) => context.fillText(ln, BASE_W/2, startY + i * 26));
       }
 
-      function renderHighRes(payload){
-        const SCALE = EXPORT_SCALE; // MOBILE PRINT FIX
+      function renderHighResDataUrl(payload, type='image/png', quality){
+        const SCALE = EXPORT_SCALE;
         const off = document.createElement('canvas');
         off.width = Math.round(BASE_W * SCALE);
         off.height = Math.round(BASE_H * SCALE);
         const octx = off.getContext('2d');
         octx.setTransform(SCALE, 0, 0, SCALE, 0, 0);
         drawCertificate(octx, payload);
-        return off.toDataURL('image/png');
+        return off.toDataURL(type, quality);
       }
 
       function dataUrlToBlobUrl(dataUrl){
-        // Faster & more reliable for printing on mobile than huge data URLs
         const bin = atob(dataUrl.split(',')[1]);
         const arr = new Uint8Array(bin.length);
         for (let i=0; i<bin.length; i++) arr[i] = bin.charCodeAt(i);
-        const blob = new Blob([arr], { type: 'image/png' });
+        const mime = dataUrl.substring(5, dataUrl.indexOf(';'));
+        const blob = new Blob([arr], { type: mime || 'application/octet-stream' });
         return URL.createObjectURL(blob);
+      }
+
+      function revokeBlobUrl(u){
+        try{ if (u) URL.revokeObjectURL(u); }catch(_){}
       }
 
       function enableActions(enable){
@@ -427,92 +437,92 @@ Uviđajući vrijednost i značaj demokratije, ali i prepoznajući izazove i prij
           accent: getAccent()
         };
 
-        const exportDataUrl = renderHighRes(payload);
-        const blobUrl = dataUrlToBlobUrl(exportDataUrl); // MOBILE PRINT FIX: use blob URL
+        // Export PNG (for preview/download/share) and JPEG (for iOS printing)
+        const pngDataUrl = renderHighResDataUrl(payload, 'image/png');
+        const jpegDataUrl = renderHighResDataUrl(payload, 'image/jpeg', 0.92);
+
+        // Preview via Blob URL (lighter for the DOM)
+        revokeBlobUrl(last.blobUrl);
+        const blobUrl = dataUrlToBlobUrl(pngDataUrl);
+
         certImg.src = blobUrl;
         printCertImg.src = blobUrl;
 
-        enableActions(true);
-        statusEl.textContent = 'Sertifikat je generisan (PNG).';
+        // Remember latest exports
+        const safeName = [fname.value.trim(), lname.value.trim()]
+          .filter(Boolean).join('_').replace(/\s+/g,'-') || 'obecanje';
+        last = { pngDataUrl, jpegDataUrl, blobUrl, filename: `obecanje_${safeName}` };
 
-        // Build dynamic share text (includes name only if consent is checked)
+        enableActions(true);
+        statusEl.textContent = 'Sertifikat je generisan.';
+
+        // Share text
         const fullName = `${fname.value.trim()} ${lname.value.trim()}`.trim();
         const namePart = consentEl.checked && fullName ? ` (${fullName})` : '';
         const shareText = `Upravo sam potpisao/la moje obećanje povodom Međunarodnog dana demokratije ${CAMPAIGN_YEAR}!${namePart} Pridruži se i potpiši i ti. ${HASHTAGS}`;
 
-        // Nice filename
-        const safeName = [fname.value.trim(), lname.value.trim()]
-          .filter(Boolean).join('_').replace(/\s+/g,'-') || 'obecanje';
-
-        // Wire (or re-wire) all [data-share] buttons with latest data + PNG for native share
+        // Wire share buttons (uses PNG data URL for Web Share file)
         SSS.wireShareButtons({
           url: CAMPAIGN_URL,
           title: 'Moje obećanje',
           text: shareText,
           hashtags: HASHTAGS_CSV,
           via: '',
-          fileDataUrl: exportDataUrl, // keep data URL for Web Share API file construction
-          filename: `obecanje_${safeName}.png`
+          fileDataUrl: pngDataUrl,
+          filename: `${last.filename}.png`
         });
       }
 
-      // Print in a popup window for mobile reliability (iOS/Android)
-      async function printInNewWindow(srcUrl){
+      // Open a minimal window and print the JPEG data URL (best for iOS)
+      function printInPopupWithDataUrl(dataUrl){
         const w = window.open('', '_blank');
         if (!w) { alert('Dozvolite iskačuće prozore (pop-up) za štampu.'); return; }
 
-        w.document.open();
-        w.document.write(`<!doctype html>
+        // Build the document first, then set src immediately to stay in the user-gesture chain
+        const html = `<!doctype html>
 <html>
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Štampa</title>
   <style>
     @page { size: A4 portrait; margin: 0; }
-    html, body { margin:0; padding:0; }
-    body { background:#fff; }
+    html, body { margin:0; padding:0; background:#fff; }
     img { display:block; width:210mm; height:auto; max-width:100%; margin:0 auto; }
   </style>
 </head>
 <body>
-  <img id="img" alt="Sertifikat" src="">
+  <img id="img" alt="Sertifikat za štampu">
   <script>
     (function(){
-      const img = document.getElementById('img');
+      var img = document.getElementById('img');
       img.addEventListener('load', function(){
         setTimeout(function(){
           try { window.print(); } catch(_) {}
-          // close tab after print on mobile (best-effort)
-          setTimeout(function(){ window.close(); }, 500);
+          setTimeout(function(){ try{ window.close(); }catch(_){ } }, 600);
         }, 50);
-      });
+      }, { once: true });
+      // In case load never fires, allow manual print
+      setTimeout(function(){ try{ window.focus(); }catch(_){} }, 300);
     })();
   <\/script>
 </body>
-</html>`);
+</html>`;
+        w.document.open();
+        w.document.write(html);
         w.document.close();
 
-        // Set src after the window’s DOM exists
-        const trySet = () => {
-          const img = w.document.getElementById('img');
-          if (img) { img.src = srcUrl; }
-          else { setTimeout(trySet, 10); }
+        // Set the image source as soon as the DOM exists in the popup
+        const setSrc = ()=>{
+          const img = w.document && w.document.getElementById && w.document.getElementById('img');
+          if (img) img.src = dataUrl; else setTimeout(setSrc, 15);
         };
-        trySet();
+        setSrc();
       }
 
-      // Robust print
-      async function printSafely(){
+      // Desktop/Android path: print current page after ensuring the image is decoded
+      async function printCurrentPage(){
         const ensureSrc = printCertImg.src || certImg.src;
         if (!ensureSrc){ return; }
-
-        // MOBILE PRINT FIX: use popup print on mobile for reliability
-        if (isMobile){
-          await printInNewWindow(ensureSrc);
-          return;
-        }
-
-        // Desktop path: ensure decode then print
         if (!printCertImg.src){ printCertImg.src = ensureSrc; }
         try{
           if (printCertImg.decode) { await printCertImg.decode(); }
@@ -527,20 +537,29 @@ Uviđajući vrijednost i značaj demokratije, ali i prepoznajući izazove i prij
         setTimeout(()=>window.print(), 0);
       }
 
+      async function printSafely(){
+        if (!last.pngDataUrl){ return; }
+        if (isIOS){
+          // Use JPEG data URL in a popup for iOS reliability
+          return printInPopupWithDataUrl(last.jpegDataUrl || last.pngDataUrl);
+        }
+        return printCurrentPage();
+      }
+
       // Events
       genBtn.addEventListener('click', generate);
 
       dlBtn.addEventListener('click', ()=>{
-        const safe = [fname.value.trim(), lname.value.trim()].filter(Boolean).join('_').replace(/\s+/g,'-') || 'obecanje';
+        if (!last.blobUrl){ return; }
         const a = document.createElement('a');
-        a.download = `obecanje_${safe}.png`;
-        a.href = printCertImg.src || certImg.src;
-        if (a.href) a.click();
+        a.download = `${last.filename}.png`;
+        a.href = last.blobUrl;
+        a.click();
       });
 
       if (printBtn) printBtn.addEventListener('click', printSafely);
 
-      // ---- Initial share wiring on page load (generic text, no PNG) ----
+      // Initial share wiring (generic text, no file)
       SSS.wireShareButtons({
         url: CAMPAIGN_URL,
         title: 'Moje obećanje',
