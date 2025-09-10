@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="sr">
+<head>
+  <meta charset="utf-8">
+  <title>Generate OG Image (1200×630 PNG)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root{ --ink:#111827; --muted:#6b7280; --accent:#003869; --bg:#ffffff }
+    *{box-sizing:border-box}
+    body{margin:0; font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial; color:var(--ink); background:#f7fafc; display:grid; place-items:center; min-height:100vh}
+    .wrap{max-width:920px; width:100%; padding:20px; text-align:center}
+    .card{background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:16px; box-shadow:0 10px 24px rgba(0,0,0,.06)}
+    .row{display:flex; gap:16px; align-items:flex-start; justify-content:center; flex-wrap:wrap}
+    canvas{border:1px solid #e5e7eb; border-radius:10px; width:100%; max-width:600px; height:auto}
+    .actions{display:flex; gap:10px; justify-content:center; margin-top:12px}
+    button, a.btn{appearance:none; border:1px solid #d1d5db; background:#fff; color:#111827; padding:10px 14px; border-radius:10px; cursor:pointer; text-decoration:none}
+    .primary{background:var(--accent); color:#fff; border-color:var(--accent); font-weight:700}
+    small{color:var(--muted)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="row">
+        <canvas id="og" width="1200" height="630" aria-label="OG image preview"></canvas>
+      </div>
+      <div class="actions">
+        <button id="download" class="primary">Preuzmi PNG (1200×630)</button>
+        <a id="openDataUrl" class="btn" href="#" download="idd-og-1200x630.png">Otvori kao data URL</a>
+      </div>
+      <small>PNG se automatski preuzima čim se slika generiše. Ako ne krene, klikni dugme.</small>
+    </div>
+  </div>
+
+  <script>
+    // === Config (can be overridden via URL query) ===
+    const qp = new URLSearchParams(location.search);
+    const TITLE    = qp.get('title')    || 'MOJE OBEĆANJE';
+    const SUBTITLE = qp.get('subtitle') || 'Međunarodni dan demokratije';
+    const CTA      = qp.get('cta')      || 'Potpiši obećanje i pridruži se!';
+    const TAGS     = qp.get('tags')     || '#IDD2025   #DanDemokratije';
+    const ACCENT   = qp.get('accent')   || '#003869';
+    const INK      = qp.get('ink')      || '#111827';
+    const MUTED    = qp.get('muted')    || '#374151';
+    const BG       = qp.get('bg')       || '#ffffff';
+
+    const c = document.getElementById('og');
+    const ctx = c.getContext('2d');
+
+    function draw(){
+      // Background
+      ctx.fillStyle = BG; ctx.fillRect(0,0,c.width,c.height);
+
+      // Accent border
+      ctx.strokeStyle = ACCENT; ctx.lineWidth = 16; ctx.strokeRect(24,24,c.width-48,c.height-48);
+
+      // Title
+      ctx.fillStyle = INK; ctx.textAlign = 'center';
+      fitText(TITLE, 'bold 64px Georgia, "Times New Roman", serif', 64, 1100, c.width/2, 200);
+
+      // Subtitle
+      ctx.fillStyle = MUTED;
+      fitText(SUBTITLE, '32px Georgia, "Times New Roman", serif', 32, 1000, c.width/2, 270);
+
+      // CTA
+      ctx.fillStyle = ACCENT;
+      fitText(CTA, '28px system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Arial', 28, 1000, c.width/2, 360);
+
+      // Tags
+      ctx.fillStyle = INK;
+      fitText(TAGS, 'bold 36px system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Arial', 36, 1000, c.width/2, 500);
+    }
+
+    function fitText(text, font, baseSize, maxWidth, x, y){
+      let size = baseSize;
+      ctx.font = font;
+      // shrink until fits
+      while (ctx.measureText(text).width > maxWidth && size > 12){
+        size -= 2; ctx.font = font.replace(/\d+px/, size + 'px');
+      }
+      // multi-line wrap if still long
+      const lines = wrap(text, maxWidth);
+      const lineHeight = Math.round(size * 1.2);
+      const startY = y - ((lines.length - 1) * lineHeight) / 2;
+      for (let i=0; i<lines.length; i++) ctx.fillText(lines[i], x, startY + i * lineHeight);
+    }
+
+    function wrap(text, maxWidth){
+      const words = text.split(/\s+/); const out = []; let line = '';
+      for (const w of words){ const t = line ? line + ' ' + w : w; if (ctx.measureText(t).width > maxWidth){ if (line) out.push(line); line = w; } else { line = t; } }
+      if (line) out.push(line); return out;
+    }
+
+    async function toPngBlob(){
+      return new Promise(res => c.toBlob(res, 'image/png'));
+    }
+
+    function triggerDownload(blob){
+      const a = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      a.href = url; a.download = 'idd-og-1200x630.png';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url), 1500);
+      // also wire the secondary link
+      document.getElementById('openDataUrl').href = url;
+      document.getElementById('openDataUrl').download = 'idd-og-1200x630.png';
+    }
+
+    // Render, download immediately, show manual button as fallback
+    async function run(){
+      draw();
+      const blob = await toPngBlob();
+      triggerDownload(blob);
+      document.getElementById('download').onclick = async ()=>{
+        const b = await toPngBlob();
+        triggerDownload(b);
+      };
+    }
+
+    run();
+  </script>
+</body>
+</html>
